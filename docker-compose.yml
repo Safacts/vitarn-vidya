@@ -1,0 +1,17 @@
+services:
+  vitarn-vidya:
+    image: nginx:alpine
+    container_name: vitarn-vidya
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./data.js:/usr/share/nginx/html/data.js
+      - ./app.js:/usr/share/nginx/html/app.js
+    networks:
+      - vitarn-network
+
+networks:
+  vitarn-network:
+    driver: bridge
