@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 3003;
 const AACHARYA_CONFIG = {
     baseUrl: 'https://jnwn.xyz',
     clientId: 'VITARN_CLIENT',
-    clientSecret: process.env.AACHARYA_CLIENT_SECRET || 'pbkdf2_sha256$1000000$lKH4Y3M75n2DKt5WjpdeGE$UwgnkG7h45y8YZfDn10UsrpBESTHkXNtaU0H6mijZEA=',
     redirectUri: `https://vitarn-vidya.jnwn.xyz/auth/callback`
 };
 
@@ -113,7 +112,6 @@ app.get('/auth/callback', async (req, res) => {
                 code: code,
                 redirect_uri: AACHARYA_CONFIG.redirectUri,
                 client_id: AACHARYA_CONFIG.clientId,
-                client_secret: AACHARYA_CONFIG.clientSecret,
             })
         });
         
