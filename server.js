@@ -87,6 +87,67 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+// OAuth Callback Handler
+app.get('/auth/callback', async (req, res) => {
+    const { code, state } = req.query;
+    
+    if (!code || !state) {
+        return res.status(400).json({ error: 'Missing code or state' });
+    }
+    
+    try {
+        // Exchange code for token with Aacharya
+        const tokenResponse = await fetch('https://jnwn.xyz/o/token/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: `https://vitarn-vidya.jnwn.xyz/auth/callback`,
+                client_id: 'VITARN_CLIENT',
+                client_secret: '', // Public client, no secret needed
+            })
+        });
+        
+        const tokenData = await tokenResponse.json();
+        
+        if (!tokenResponse.ok) {
+            console.error('Token exchange failed:', tokenData);
+            return res.redirect('/?error=token_exchange_failed');
+        }
+        
+        // Get user info from Aacharya
+        const userResponse = await fetch('https://jnwn.xyz/api/user/', {
+            headers: {
+                'Authorization': `Bearer ${tokenData.access_token}`
+            }
+        });
+        
+        const userData = await userResponse.json();
+        
+        if (!userResponse.ok) {
+            console.error('User info fetch failed:', userData);
+            return res.redirect('/?error=user_info_failed');
+        }
+        
+        // Return user info to frontend
+        res.send(`
+            <script>
+                localStorage.setItem('vitarn_auth', JSON.stringify({
+                    full_name: '${userData.full_name || userData.username || 'Student'}',
+                    role: '${userData.role || 'student'}',
+                    college: '${userData.college || 'JNTU Wanaparty'}',
+                    email: '${userData.email || ''}'
+                }));
+                window.location.href = '/';
+            </script>
+        `);
+    } catch (error) {
+        console.error('OAuth callback error:', error);
+        res.redirect('/?error=oauth_failed');
+    }
+});
+
 // Serve static files for all other routes
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

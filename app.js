@@ -440,27 +440,3 @@ function renderMarkdown(text) {
     return html;
 }
 
-// Handle OAuth Callback (for when implemented)
-function handleOAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    
-    if (code && state) {
-        // Exchange code for token (this would call your backend)
-        // For demo, we'll simulate successful auth
-        const mockUser = {
-            full_name: 'Demo Student',
-            role: 'student',
-            college: 'JNTU Wanaparty'
-        };
-        
-        localStorage.setItem('vitarn_auth', JSON.stringify(mockUser));
-        window.location.href = '/';
-    }
-}
-
-// Check for OAuth callback on page load
-if (window.location.search.includes('code')) {
-    handleOAuthCallback();
-}
