@@ -33,19 +33,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // State Management Functions
-function loadState() {
-    const savedState = localStorage.getItem('vitarn_vidya_state');
-    if (savedState) {
-        state.progress = JSON.parse(savedState);
+async function loadState() {
+    if (!state.user) return;
+    
+    try {
+        const response = await fetch(`/api/progress/${state.user.full_name || state.user.email || 'anonymous'}`);
+        const data = await response.json();
+        if (data) {
+            state.progress = {
+                unitsCompleted: data.units_completed || [],
+                quizScores: data.quiz_scores || {},
+                questionsAnswered: data.questions_answered || 0,
+                timeSpent: data.time_spent || 0
+            };
+        }
+    } catch (error) {
+        console.error('Failed to load progress:', error);
+        // Fallback to localStorage
+        const savedState = localStorage.getItem('vitarn_vidya_state');
+        if (savedState) {
+            state.progress = JSON.parse(savedState);
+        }
     }
 }
 
-function saveState() {
-    localStorage.setItem('vitarn_vidya_state', JSON.stringify(state.progress));
+async function saveState() {
+    if (!state.user) return;
+    
+    try {
+        await fetch('/api/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: state.user.full_name || state.user.email || 'anonymous',
+                user_name: state.user.full_name || 'Student',
+                units_completed: state.progress.unitsCompleted,
+                quiz_scores: state.progress.quizScores,
+                questions_answered: state.progress.questionsAnswered,
+                time_spent: state.progress.timeSpent
+            })
+        });
+    } catch (error) {
+        console.error('Failed to save progress:', error);
+        // Fallback to localStorage
+        localStorage.setItem('vitarn_vidya_state', JSON.stringify(state.progress));
+    }
 }
 
 // Authentication Functions
-function checkAuth() {
+async function checkAuth() {
     const authData = localStorage.getItem('vitarn_auth');
     if (authData) {
         state.isAuthenticated = true;
@@ -53,6 +89,7 @@ function checkAuth() {
         document.getElementById('landing-page').classList.add('hidden');
         document.getElementById('dashboard').classList.add('active');
         updateAuthUI();
+        await loadState(); // Load progress from server
     }
 }
 

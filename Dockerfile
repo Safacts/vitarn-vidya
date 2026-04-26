@@ -1,12 +1,25 @@
-FROM nginx:alpine
+FROM node:18-alpine
 
-# Copy static files
-COPY index.html /usr/share/nginx/html/
-COPY data.js /usr/share/nginx/html/
-COPY app.js /usr/share/nginx/html/
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy application files
+COPY index.html ./
+COPY data.js ./
+COPY app.js ./
+COPY server.js ./
+
+# Create directory for SQLite database
+RUN mkdir -p /app/data
 
 # Expose port
-EXPOSE 80
+EXPOSE 3000
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start server
+CMD ["node", "server.js"]

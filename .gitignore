@@ -1,0 +1,6 @@
+node_modules
+vitarn_vidya.db
+data/
+*.log
+.env
+.DS_Store
