@@ -4,11 +4,11 @@ services:
     container_name: vitarn-vidya
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     volumes:
       - ./data:/app/data
     environment:
-      - PORT=3000
+      - PORT=3001
     networks:
       - vitarn-network
 
