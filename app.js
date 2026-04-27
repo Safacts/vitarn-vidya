@@ -1,428 +1,206 @@
-// Vitarn Vidya - RPA Exam Prep Application
-// Main Application Logic
+// Vitarn Vidya - Study Notes Application
+// GitHub: https://github.com/Safacts/syllabus
 
-// State Management
-let state = {
-    isAuthenticated: false,
-    user: null,
-    currentUnit: null,
-    currentQuestion: 0,
-    quizAnswers: [],
-    quizScore: 0,
-    progress: {
-        unitsCompleted: [],
-        quizScores: {},
-        questionsAnswered: 0,
-        timeSpent: 0
-    }
-};
+const GITHUB_REPO = 'Safacts/syllabus';
+const GITHUB_API_BASE = 'https://api.github.com/repos';
 
-// Aacharya OAuth Configuration
-const AACHARYA_CONFIG = {
-    baseUrl: 'https://jnwn.xyz',
-    clientId: 'VITARN_CLIENT',
-    redirectUri: window.location.origin + '/auth/callback'
-};
+// State
+let subjects = [];
+let currentFilter = 'all';
+let searchQuery = '';
 
-// Initialize Application
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    loadState();
-    checkAuth();
-    renderDashboard();
-    startTimer();
+    fetchSubjects();
+    setupEventListeners();
 });
 
-// State Management Functions
-async function loadState() {
-    if (!state.user) return;
-    
-    try {
-        const response = await fetch(`/api/progress/${state.user.full_name || state.user.email || 'anonymous'}`);
-        const data = await response.json();
-        if (data) {
-            state.progress = {
-                unitsCompleted: data.units_completed || [],
-                quizScores: data.quiz_scores || {},
-                questionsAnswered: data.questions_answered || 0,
-                timeSpent: data.time_spent || 0
-            };
-        }
-    } catch (error) {
-        console.error('Failed to load progress:', error);
-        // Fallback to localStorage
-        const savedState = localStorage.getItem('vitarn_vidya_state');
-        if (savedState) {
-            state.progress = JSON.parse(savedState);
-        }
-    }
-}
+// Setup Event Listeners
+function setupEventListeners() {
+    // Search input
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        renderSubjects();
+    });
 
-async function saveState() {
-    if (!state.user) return;
-    
-    try {
-        await fetch('/api/progress', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_id: state.user.full_name || state.user.email || 'anonymous',
-                user_name: state.user.full_name || 'Student',
-                units_completed: state.progress.unitsCompleted,
-                quiz_scores: state.progress.quizScores,
-                questions_answered: state.progress.questionsAnswered,
-                time_spent: state.progress.timeSpent
-            })
+    // Filter chips
+    const filterChips = document.querySelectorAll('.filter-chip');
+    filterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            filterChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            currentFilter = chip.dataset.filter;
+            renderSubjects();
         });
-    } catch (error) {
-        console.error('Failed to save progress:', error);
-        // Fallback to localStorage
-        localStorage.setItem('vitarn_vidya_state', JSON.stringify(state.progress));
-    }
-}
-
-// Authentication Functions
-async function checkAuth() {
-    const authData = localStorage.getItem('vitarn_auth');
-    if (authData) {
-        state.isAuthenticated = true;
-        state.user = JSON.parse(authData);
-        document.getElementById('landing-page').classList.add('hidden');
-        document.getElementById('dashboard').classList.add('active');
-        updateAuthUI();
-        await loadState(); // Load progress from server
-    }
-}
-
-function updateAuthUI() {
-    const authSection = document.getElementById('auth-section');
-    if (state.isAuthenticated) {
-        authSection.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="text-align: right;">
-                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--vitarn-black);">${state.user.full_name || 'Student'}</div>
-                    <div style="font-size: 0.625rem; font-weight: 600; color: var(--vitarn-text-light); text-transform: uppercase;">${state.user.role || 'Student'}</div>
-                </div>
-                <button class="btn" onclick="handleLogout()" style="padding: 0.5rem;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                </button>
-            </div>
-        `;
-        document.getElementById('user-name').textContent = state.user.full_name || 'Student';
-    }
-}
-
-function openLoginModal() {
-    document.getElementById('login-modal').classList.add('active');
-}
-
-function closeLoginModal() {
-    document.getElementById('login-modal').classList.remove('active');
-}
-
-function handleAacharyaLogin() {
-    // Generate PKCE code verifier and challenge
-    const codeVerifier = generateCodeVerifier();
-    const codeChallenge = generateCodeChallenge(codeVerifier);
-    const state = generateCodeVerifier();
-    
-    sessionStorage.setItem('aacharya_code_verifier', codeVerifier);
-    sessionStorage.setItem('aacharya_oauth_state', state);
-    
-    const params = new URLSearchParams({
-        client_id: AACHARYA_CONFIG.clientId,
-        redirect_uri: AACHARYA_CONFIG.redirectUri,
-        scope: 'openid profile email',
-        response_type: 'code',
-        state: state,
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256'
     });
-    
-    const authUrl = `${AACHARYA_CONFIG.baseUrl}/o/authorize/?${params.toString()}`;
-    window.location.href = authUrl;
 }
 
-function handleGoogleLogin() {
-    // For demo purposes, simulate Google login
-    // In production, this would redirect to Google OAuth
-    alert('Google OAuth would be implemented here. For demo, using Aacharya login.');
-    handleAacharyaLogin();
-}
-
-function handleLogout() {
-    localStorage.removeItem('vitarn_auth');
-    localStorage.removeItem('vitarn_vidya_state');
-    state.isAuthenticated = false;
-    state.user = null;
-    state.progress = {
-        unitsCompleted: [],
-        quizScores: {},
-        questionsAnswered: 0,
-        timeSpent: 0
-    };
-    window.location.reload();
-}
-
-// PKCE Helper Functions
-function generateCodeVerifier() {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return base64UrlEncode(array);
-}
-
-function generateCodeChallenge(verifier) {
-    return base64UrlEncode(sha256(verifier));
-}
-
-function base64UrlEncode(buffer) {
-    let str = '';
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-        str += String.fromCharCode(bytes[i]);
-    }
-    return btoa(str)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-}
-
-async function sha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    return hashBuffer;
-}
-
-// Dashboard Functions
-function renderDashboard() {
-    if (!state.isAuthenticated) return;
-    
-    const unitsGrid = document.getElementById('units-grid');
-    unitsGrid.innerHTML = '';
-    
-    RPA_DATA.units.forEach(unit => {
-        const isCompleted = state.progress.unitsCompleted.includes(unit.id);
-        const quizScore = state.progress.quizScores[unit.id] || 0;
-        const progressPercent = isCompleted ? 100 : (quizScore > 0 ? quizScore : 0);
+// Fetch Subjects from GitHub
+async function fetchSubjects() {
+    try {
+        // Fetch CSM-4-2 folder structure
+        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/CSM-4-2`);
+        const data = await response.json();
         
-        const card = document.createElement('div');
-        card.className = 'unit-card';
-        card.onclick = () => openUnit(unit.id);
-        card.innerHTML = `
-            <div class="unit-number">UNIT ${unit.id}</div>
-            <div class="unit-title">${unit.title}</div>
-            <div class="unit-topics">${unit.topics.slice(0, 3).join(' • ')}</div>
-            <div class="unit-progress">
-                <div class="unit-progress-bar">
-                    <div class="unit-progress-fill" style="width: ${progressPercent}%"></div>
-                </div>
-                <div class="unit-progress-text">${progressPercent}%</div>
+        if (Array.isArray(data)) {
+            subjects = data.filter(item => item.type === 'dir').map(folder => ({
+                name: folder.name,
+                path: folder.path,
+                type: 'subject'
+            }));
+            renderSubjects();
+        }
+    } catch (error) {
+        console.error('Error fetching subjects:', error);
+        document.getElementById('subjects-grid').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
+                Failed to load subjects. Please try again later.
             </div>
         `;
-        unitsGrid.appendChild(card);
+    }
+}
+
+// Render Subjects
+function renderSubjects() {
+    const grid = document.getElementById('subjects-grid');
+    
+    const filteredSubjects = subjects.filter(subject => {
+        const matchesFilter = currentFilter === 'all' || subject.name.toLowerCase().includes(currentFilter.toLowerCase());
+        const matchesSearch = subject.name.toLowerCase().includes(searchQuery);
+        return matchesFilter && matchesSearch;
     });
-    
-    updateProgressStats();
-}
 
-function updateProgressStats() {
-    const unitsCompleted = state.progress.unitsCompleted.length;
-    const totalUnits = RPA_DATA.units.length;
-    const overallPercent = Math.round((unitsCompleted / totalUnits) * 100);
-    
-    // Calculate average quiz score
-    const quizScores = Object.values(state.progress.quizScores);
-    const avgQuizScore = quizScores.length > 0 
-        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length) 
-        : 0;
-    
-    document.getElementById('units-completed').textContent = `${unitsCompleted}/${totalUnits}`;
-    document.getElementById('quiz-score').textContent = `${avgQuizScore}%`;
-    document.getElementById('questions-answered').textContent = state.progress.questionsAnswered;
-    document.getElementById('time-spent').textContent = `${Math.floor(state.progress.timeSpent / 60)}h`;
-    document.getElementById('overall-progress-text').textContent = `${overallPercent}%`;
-    document.getElementById('overall-progress-bar').style.width = `${overallPercent}%`;
-}
-
-function startTimer() {
-    setInterval(() => {
-        if (state.isAuthenticated) {
-            state.progress.timeSpent++;
-            saveState();
-            updateProgressStats();
-        }
-    }, 60000); // Update every minute
-}
-
-// Content Viewer Functions
-function openUnit(unitId) {
-    state.currentUnit = unitId;
-    const unit = RPA_DATA.units.find(u => u.id === unitId);
-    
-    document.getElementById('dashboard').classList.remove('active');
-    document.getElementById('content-viewer').classList.add('active');
-    
-    document.getElementById('content-title').textContent = unit.title;
-    document.getElementById('content-body').innerHTML = renderMarkdown(unit.content);
-}
-
-function showDashboard() {
-    document.getElementById('content-viewer').classList.remove('active');
-    document.getElementById('quiz-section').classList.remove('active');
-    document.getElementById('results').classList.remove('active');
-    document.getElementById('exam-guide').classList.add('hidden');
-    document.getElementById('dashboard').classList.add('active');
-    renderDashboard();
-}
-
-function showExamGuide() {
-    document.getElementById('dashboard').classList.remove('active');
-    document.getElementById('exam-guide').classList.remove('hidden');
-    document.getElementById('exam-guide-content').innerHTML = renderMarkdown(RPA_DATA.examGuide);
-}
-
-// Quiz Functions
-function startQuiz() {
-    if (!state.currentUnit) return;
-    
-    state.currentQuestion = 0;
-    state.quizAnswers = [];
-    state.quizScore = 0;
-    
-    const unit = RPA_DATA.units.find(u => u.id === state.currentUnit);
-    
-    document.getElementById('content-viewer').classList.remove('active');
-    document.getElementById('quiz-section').classList.add('active');
-    
-    document.getElementById('quiz-title').textContent = `Unit ${state.currentUnit} Quiz`;
-    document.getElementById('quiz-info').textContent = `Question 1 of ${unit.quiz.length}`;
-    
-    renderQuestion();
-}
-
-function renderQuestion() {
-    const unit = RPA_DATA.units.find(u => u.id === state.currentUnit);
-    const question = unit.quiz[state.currentQuestion];
-    
-    const quizContainer = document.getElementById('quiz-questions');
-    quizContainer.innerHTML = `
-        <div class="question-card">
-            <div class="question-number">Question ${state.currentQuestion + 1}</div>
-            <div class="question-text">${question.question}</div>
-            <div class="options">
-                ${question.options.map((option, index) => `
-                    <div class="option ${state.quizAnswers[state.currentQuestion] === index ? 'selected' : ''}" 
-                         onclick="selectOption(${index})">
-                        ${option}
-                    </div>
-                `).join('')}
+    if (filteredSubjects.length === 0) {
+        grid.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
+                No subjects found matching your search.
             </div>
-            <div class="explanation ${state.quizAnswers[state.currentQuestion] !== undefined ? 'show' : ''}">
-                <strong>Explanation:</strong> ${question.explanation}
-            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filteredSubjects.map(subject => `
+        <div class="subject-card" onclick="openSubject('${subject.path}', '${subject.name}')">
+            <div class="subject-name">${formatSubjectName(subject.name)}</div>
+            <div class="subject-meta">CSM 4-2</div>
         </div>
-    `;
+    `).join('');
+}
+
+// Format Subject Name
+function formatSubjectName(name) {
+    return name
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+// Open Subject
+async function openSubject(path, name) {
+    document.getElementById('home-page').classList.add('hidden');
+    document.getElementById('notes-viewer').classList.add('active');
+    document.getElementById('notes-title').textContent = formatSubjectName(name);
     
-    // Update navigation buttons
-    document.getElementById('prev-btn').disabled = state.currentQuestion === 0;
-    document.getElementById('next-btn').textContent = 
-        state.currentQuestion === unit.quiz.length - 1 ? 'Finish' : 'Next';
-}
-
-function selectOption(optionIndex) {
-    state.quizAnswers[state.currentQuestion] = optionIndex;
-    renderQuestion();
-}
-
-function nextQuestion() {
-    const unit = RPA_DATA.units.find(u => u.id === state.currentUnit);
-    
-    if (state.currentQuestion < unit.quiz.length - 1) {
-        state.currentQuestion++;
-        document.getElementById('quiz-info').textContent = 
-            `Question ${state.currentQuestion + 1} of ${unit.quiz.length}`;
-        renderQuestion();
-    } else {
-        finishQuiz();
-    }
-}
-
-function prevQuestion() {
-    if (state.currentQuestion > 0) {
-        state.currentQuestion--;
-        document.getElementById('quiz-info').textContent = 
-            `Question ${state.currentQuestion + 1} of ${unit.quiz.length}`;
-        renderQuestion();
-    }
-}
-
-function finishQuiz() {
-    const unit = RPA_DATA.units.find(u => u.id === state.currentUnit);
-    let correct = 0;
-    
-    unit.quiz.forEach((question, index) => {
-        if (state.quizAnswers[index] === question.correct) {
-            correct++;
+    // Fetch subject files
+    try {
+        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/${path}`);
+        const files = await response.json();
+        
+        if (Array.isArray(files)) {
+            // Filter for markdown files
+            const mdFiles = files.filter(file => file.name.endsWith('.md') && !file.name.includes('SYLLABUS'));
+            
+            if (mdFiles.length > 0) {
+                // Load the first markdown file (or create a list of files)
+                await loadMarkdownFile(mdFiles[0].path, mdFiles, name);
+            } else {
+                document.getElementById('notes-content').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
+                        No notes available for this subject yet.
+                    </div>
+                `;
+            }
         }
-    });
-    
-    const score = Math.round((correct / unit.quiz.length) * 100);
-    state.quizScore = score;
-    
-    // Update progress
-    state.progress.quizScores[state.currentUnit] = score;
-    state.progress.questionsAnswered += unit.quiz.length;
-    
-    if (score >= 70) {
-        if (!state.progress.unitsCompleted.includes(state.currentUnit)) {
-            state.progress.unitsCompleted.push(state.currentUnit);
-        }
+    } catch (error) {
+        console.error('Error loading subject:', error);
+        document.getElementById('notes-content').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
+                Failed to load notes. Please try again later.
+            </div>
+        `;
     }
-    
-    saveState();
-    
-    // Show results
-    document.getElementById('quiz-section').classList.remove('active');
-    document.getElementById('results').classList.add('active');
-    
-    document.getElementById('final-score').textContent = `${score}%`;
-    document.getElementById('correct-count').textContent = correct;
-    document.getElementById('incorrect-count').textContent = unit.quiz.length - correct;
-    document.getElementById('total-questions').textContent = unit.quiz.length;
-    
-    let message = '';
-    if (score >= 90) message = 'Excellent! You\'re well prepared!';
-    else if (score >= 70) message = 'Good job! Keep practicing!';
-    else if (score >= 50) message = 'Keep studying, you\'re getting there!';
-    else message = 'Review the material and try again!';
-    
-    document.getElementById('results-message').textContent = message;
 }
 
-function retakeQuiz() {
-    startQuiz();
+// Load Markdown File
+async function loadMarkdownFile(filePath, allFiles, subjectName) {
+    try {
+        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/${filePath}`);
+        const data = await response.json();
+        
+        if (data.content) {
+            // Decode base64 content
+            const content = atob(data.content);
+            const html = renderMarkdown(content);
+            
+            // Create file navigation if multiple files
+            let fileNav = '';
+            if (allFiles.length > 1) {
+                fileNav = `
+                    <div style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--vitarn-border);">
+                        <div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--vitarn-text-light);">UNITS:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            ${allFiles.map(file => `
+                                <button 
+                                    class="filter-chip ${file.path === filePath ? 'active' : ''}"
+                                    onclick="loadMarkdownFile('${file.path}', ${JSON.stringify(allFiles)}, '${subjectName}')"
+                                >
+                                    ${file.name.replace('.md', '')}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('notes-content').innerHTML = fileNav + html;
+        }
+    } catch (error) {
+        console.error('Error loading markdown:', error);
+        document.getElementById('notes-content').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
+                Failed to load content. Please try again later.
+            </div>
+        `;
+    }
 }
 
-// Markdown Renderer (Simple)
-function renderMarkdown(text) {
-    if (!text) return '';
+// Render Markdown to HTML
+function renderMarkdown(markdown) {
+    if (!markdown) return '';
     
-    let html = text
+    let html = markdown
         // Headers
+        .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
         .replace(/^### (.*$)/gim, '<h3>$1</h3>')
         .replace(/^## (.*$)/gim, '<h2>$1</h2>')
         .replace(/^# (.*$)/gim, '<h1>$1</h1>')
         // Bold
-        .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
         // Italic
-        .replace(/\*(.*)\*/gim, '<em>$1</em>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
         // Code blocks
-        .replace(/```([^`]+)```/gim, '<pre><code>$1</code></pre>')
+        .replace(/```(\w+)?\n([\s\S]*?)```/gim, '<pre><code>$2</code></pre>')
         // Inline code
         .replace(/`([^`]+)`/gim, '<code>$1</code>')
+        // Blockquotes
+        .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+        // Tables
+        .replace(/\|(.+)\|/gim, (match) => {
+            const cells = match.split('|').filter(c => c.trim());
+            if (cells.some(c => c.includes('---'))) return ''; // Skip separator row
+            return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+        })
         // Lists
         .replace(/^\- (.*$)/gim, '<li>$1</li>')
         .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
@@ -437,6 +215,20 @@ function renderMarkdown(text) {
     html = html.replace(/<p><li>/g, '<ul><li>');
     html = html.replace(/<\/li><\/p>/g, '</li></ul>');
     
+    // Fix table wrapping
+    html = html.replace(/<p><tr>/g, '<table><tr>');
+    html = html.replace(/<\/tr><\/p>/g, '</tr></table>');
+    
+    // Fix blockquote wrapping
+    html = html.replace(/<p><blockquote>/g, '<blockquote>');
+    html = html.replace(/<\/blockquote><\/p>/g, '</blockquote>');
+    
     return html;
 }
 
+// Show Home
+function showHome() {
+    document.getElementById('notes-viewer').classList.remove('active');
+    document.getElementById('home-page').classList.remove('hidden');
+    document.getElementById('notes-content').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+}
