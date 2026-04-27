@@ -11,12 +11,8 @@ RUN npm install --production
 
 # Copy application files
 COPY index.html ./
-COPY data.js ./
 COPY app.js ./
 COPY server.js ./
-
-# Create directory for SQLite database
-RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 3000
