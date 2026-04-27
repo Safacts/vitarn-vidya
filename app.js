@@ -193,7 +193,7 @@ async function loadMarkdownFile(filePath, allFiles, subjectName, branch) {
                             ${allFiles.map(file => `
                                 <button 
                                     class="filter-chip ${file.path === filePath ? 'active' : ''}"
-                                    onclick="loadMarkdownFile('${file.path}', ${JSON.stringify(allFiles)}, '${subjectName}', '${branch}')"
+                                    onclick="loadMarkdownFileByIndex(${allFiles.indexOf(file)})"
                                 >
                                     ${formatFileName(file.name)}
                                 </button>
@@ -220,4 +220,12 @@ function showHome() {
     document.getElementById('notes-viewer').classList.remove('active');
     document.getElementById('home-page').classList.remove('hidden');
     document.getElementById('notes-content').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+}
+
+// Load Markdown File by Index
+function loadMarkdownFileByIndex(index) {
+    if (window.currentFiles && window.currentFiles[index]) {
+        const file = window.currentFiles[index];
+        loadMarkdownFile(file.path, window.currentFiles, window.currentSubjectName, window.currentBranch);
+    }
 }
