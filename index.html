@@ -6,6 +6,7 @@
     <title>Vitarn Vidya - Study Notes</title>
     <meta name="description" content="Comprehensive study materials for engineering students">
     <script defer src="https://vitarn-analytics.jnwn.xyz/script.js" data-website-id="24ae2874-c479-4404-82a5-c2f96e88294c"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -32,12 +33,19 @@
             min-height: 100vh;
         }
 
+        .vitarn-grid {
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
         /* Header */
         .header {
             position: sticky;
             top: 0;
             z-index: 50;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--vitarn-border);
         }
@@ -45,7 +53,8 @@
         .header-content {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 0.75rem 1rem;
+            padding: 0 1.5rem;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -67,7 +76,7 @@
         .main {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 1.5rem 1rem;
+            padding: 2rem 1.5rem;
             min-height: calc(100vh - 64px);
         }
 
@@ -82,7 +91,6 @@
             font-size: 1rem;
             font-family: inherit;
             border: 2px solid var(--vitarn-border);
-            border-radius: 8px;
             background: var(--vitarn-gray);
             transition: all 0.2s;
         }
@@ -103,9 +111,10 @@
         .filter-chip {
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
-            font-weight: 600;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
             border: 2px solid var(--vitarn-border);
-            border-radius: 20px;
             background: white;
             cursor: pointer;
             transition: all 0.2s;
@@ -124,17 +133,16 @@
         /* Subjects Grid */
         .subjects-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
         }
 
         .subject-card {
             background: white;
             border: 2px solid var(--vitarn-border);
-            padding: 1.25rem;
+            padding: 1.5rem;
             cursor: pointer;
             transition: all 0.2s;
-            border-radius: 8px;
         }
 
         .subject-card:hover {
@@ -144,7 +152,7 @@
         }
 
         .subject-name {
-            font-size: 1.125rem;
+            font-size: 1.25rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
         }
@@ -169,7 +177,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid var(--vitarn-border);
             flex-wrap: wrap;
@@ -177,28 +185,31 @@
         }
 
         .notes-title {
-            font-size: 1.5rem;
+            font-size: 1.875rem;
             font-weight: 900;
             letter-spacing: -0.05em;
         }
 
         .back-btn {
             padding: 0.5rem 1rem;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
             border: 2px solid var(--vitarn-border);
-            background: white;
+            background: transparent;
+            color: var(--vitarn-black);
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .back-btn:hover {
-            border-color: var(--vitarn-black);
-            background: var(--vitarn-gray);
+            background: var(--vitarn-black);
+            color: white;
         }
 
         .notes-content {
-            max-width: 800px;
+            max-width: 900px;
             line-height: 1.8;
         }
 
@@ -245,7 +256,6 @@
             padding: 0.125rem 0.375rem;
             font-family: monospace;
             font-size: 0.875rem;
-            border-radius: 4px;
         }
 
         .notes-content pre {
@@ -253,7 +263,6 @@
             padding: 1rem;
             overflow-x: auto;
             margin: 1rem 0;
-            border-radius: 8px;
         }
 
         .notes-content pre code {
@@ -290,8 +299,7 @@
             margin: 2rem 0;
             padding: 1.5rem;
             background: var(--vitarn-gray);
-            border: 1px solid var(--vitarn-border);
-            border-radius: 8px;
+            border: 2px solid var(--vitarn-border);
             text-align: center;
             min-height: 100px;
             display: flex;
@@ -315,9 +323,9 @@
 
         .spinner {
             display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--vitarn-border);
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--vitarn-border);
             border-top-color: var(--vitarn-black);
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
@@ -330,11 +338,11 @@
         /* Responsive */
         @media (max-width: 768px) {
             .header-content {
-                padding: 0.75rem 0.75rem;
+                padding: 0 1rem;
             }
 
             .main {
-                padding: 1rem 0.75rem;
+                padding: 1.5rem 1rem;
             }
 
             .subjects-grid {
@@ -378,7 +386,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="main">
+    <main class="main vitarn-grid">
         <!-- Home Page -->
         <div id="home-page">
             <div class="search-section">

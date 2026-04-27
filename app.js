@@ -3,6 +3,7 @@
 
 const GITHUB_REPO = 'Safacts/syllabus';
 const GITHUB_API_BASE = 'https://api.github.com/repos';
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com';
 
 // State
 let subjects = [];
@@ -39,16 +40,36 @@ function setupEventListeners() {
 // Fetch Subjects from GitHub
 async function fetchSubjects() {
     try {
-        // Fetch CSM-4-2 folder structure
-        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/CSM-4-2`);
+        // Fetch root folder structure
+        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents`);
         const data = await response.json();
         
         if (Array.isArray(data)) {
-            subjects = data.filter(item => item.type === 'dir').map(folder => ({
-                name: folder.name,
-                path: folder.path,
-                type: 'subject'
-            }));
+            // Get all folders (branch-year-semester folders)
+            const folders = data.filter(item => item.type === 'dir');
+            
+            // Fetch subjects from each folder
+            for (const folder of folders) {
+                try {
+                    const subResponse = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/${folder.name}`);
+                    const subData = await subResponse.json();
+                    
+                    if (Array.isArray(subData)) {
+                        const subFolders = subData.filter(item => item.type === 'dir');
+                        subFolders.forEach(subFolder => {
+                            subjects.push({
+                                name: subFolder.name,
+                                path: subFolder.path,
+                                branch: folder.name,
+                                type: 'subject'
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching subfolder:', e);
+                }
+            }
+            
             renderSubjects();
         }
     } catch (error) {
@@ -66,8 +87,9 @@ function renderSubjects() {
     const grid = document.getElementById('subjects-grid');
     
     const filteredSubjects = subjects.filter(subject => {
-        const matchesFilter = currentFilter === 'all' || subject.name.toLowerCase().includes(currentFilter.toLowerCase());
-        const matchesSearch = subject.name.toLowerCase().includes(searchQuery);
+        const matchesFilter = currentFilter === 'all' || subject.branch === currentFilter;
+        const matchesSearch = subject.name.toLowerCase().includes(searchQuery) || 
+                             subject.branch.toLowerCase().includes(searchQuery);
         return matchesFilter && matchesSearch;
     });
 
@@ -81,9 +103,9 @@ function renderSubjects() {
     }
 
     grid.innerHTML = filteredSubjects.map(subject => `
-        <div class="subject-card" onclick="openSubject('${subject.path}', '${subject.name}')">
+        <div class="subject-card" onclick="openSubject('${subject.path}', '${subject.name}', '${subject.branch}')">
             <div class="subject-name">${formatSubjectName(subject.name)}</div>
-            <div class="subject-meta">CSM 4-2</div>
+            <div class="subject-meta">${formatBranchName(subject.branch)}</div>
         </div>
     `).join('');
 }
@@ -96,8 +118,13 @@ function formatSubjectName(name) {
         .join(' ');
 }
 
+// Format Branch Name
+function formatBranchName(name) {
+    return name.toUpperCase();
+}
+
 // Open Subject
-async function openSubject(path, name) {
+async function openSubject(path, name, branch) {
     document.getElementById('home-page').classList.add('hidden');
     document.getElementById('notes-viewer').classList.add('active');
     document.getElementById('notes-title').textContent = formatSubjectName(name);
@@ -109,11 +136,14 @@ async function openSubject(path, name) {
         
         if (Array.isArray(files)) {
             // Filter for markdown files
-            const mdFiles = files.filter(file => file.name.endsWith('.md') && !file.name.includes('SYLLABUS'));
+            const mdFiles = files.filter(file => file.name.endsWith('.md')).sort((a, b) => {
+                // Sort by name (UNIT_1, UNIT_2, etc.)
+                return a.name.localeCompare(b.name);
+            });
             
             if (mdFiles.length > 0) {
-                // Load the first markdown file (or create a list of files)
-                await loadMarkdownFile(mdFiles[0].path, mdFiles, name);
+                // Load the first markdown file
+                await loadMarkdownFile(mdFiles[0].path, mdFiles, name, branch);
             } else {
                 document.getElementById('notes-content').innerHTML = `
                     <div style="text-align: center; padding: 2rem; color: var(--vitarn-text-light);">
@@ -133,29 +163,29 @@ async function openSubject(path, name) {
 }
 
 // Load Markdown File
-async function loadMarkdownFile(filePath, allFiles, subjectName) {
+async function loadMarkdownFile(filePath, allFiles, subjectName, branch) {
     try {
-        const response = await fetch(`${GITHUB_API_BASE}/${GITHUB_REPO}/contents/${filePath}`);
-        const data = await response.json();
+        // Use raw.githubusercontent.com for direct file access
+        const response = await fetch(`${GITHUB_RAW_BASE}/${GITHUB_REPO}/main/${filePath}`);
+        const content = await response.text();
         
-        if (data.content) {
-            // Decode base64 content
-            const content = atob(data.content);
-            const html = renderMarkdown(content);
+        if (content) {
+            // Use marked.js for proper markdown rendering
+            const html = marked.parse(content);
             
             // Create file navigation if multiple files
             let fileNav = '';
             if (allFiles.length > 1) {
                 fileNav = `
-                    <div style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--vitarn-border);">
-                        <div style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--vitarn-text-light);">UNITS:</div>
+                    <div style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--vitarn-border);">
+                        <div style="font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; color: var(--vitarn-text-light);">UNITS:</div>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                             ${allFiles.map(file => `
                                 <button 
                                     class="filter-chip ${file.path === filePath ? 'active' : ''}"
-                                    onclick="loadMarkdownFile('${file.path}', ${JSON.stringify(allFiles)}, '${subjectName}')"
+                                    onclick="loadMarkdownFile('${file.path}', ${JSON.stringify(allFiles)}, '${subjectName}', '${branch}')"
                                 >
-                                    ${file.name.replace('.md', '')}
+                                    ${file.name.replace('.md', '').replace('_', ' ')}
                                 </button>
                             `).join('')}
                         </div>
@@ -173,57 +203,6 @@ async function loadMarkdownFile(filePath, allFiles, subjectName) {
             </div>
         `;
     }
-}
-
-// Render Markdown to HTML
-function renderMarkdown(markdown) {
-    if (!markdown) return '';
-    
-    let html = markdown
-        // Headers
-        .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-        // Italic
-        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-        // Code blocks
-        .replace(/```(\w+)?\n([\s\S]*?)```/gim, '<pre><code>$2</code></pre>')
-        // Inline code
-        .replace(/`([^`]+)`/gim, '<code>$1</code>')
-        // Blockquotes
-        .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-        // Tables
-        .replace(/\|(.+)\|/gim, (match) => {
-            const cells = match.split('|').filter(c => c.trim());
-            if (cells.some(c => c.includes('---'))) return ''; // Skip separator row
-            return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
-        })
-        // Lists
-        .replace(/^\- (.*$)/gim, '<li>$1</li>')
-        .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-        // Line breaks
-        .replace(/\n\n/gim, '</p><p>')
-        .replace(/\n/gim, '<br>');
-    
-    // Wrap in paragraphs
-    html = '<p>' + html + '</p>';
-    
-    // Fix list wrapping
-    html = html.replace(/<p><li>/g, '<ul><li>');
-    html = html.replace(/<\/li><\/p>/g, '</li></ul>');
-    
-    // Fix table wrapping
-    html = html.replace(/<p><tr>/g, '<table><tr>');
-    html = html.replace(/<\/tr><\/p>/g, '</tr></table>');
-    
-    // Fix blockquote wrapping
-    html = html.replace(/<p><blockquote>/g, '<blockquote>');
-    html = html.replace(/<\/blockquote><\/p>/g, '</blockquote>');
-    
-    return html;
 }
 
 // Show Home
