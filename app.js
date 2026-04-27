@@ -123,6 +123,16 @@ function formatBranchName(name) {
     return name.toUpperCase();
 }
 
+// Format File Name
+function formatFileName(name) {
+    return name
+        .replace('.md', '')
+        .replace(/_/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 // Open Subject
 async function openSubject(path, name, branch) {
     document.getElementById('home-page').classList.add('hidden');
@@ -185,7 +195,7 @@ async function loadMarkdownFile(filePath, allFiles, subjectName, branch) {
                                     class="filter-chip ${file.path === filePath ? 'active' : ''}"
                                     onclick="loadMarkdownFile('${file.path}', ${JSON.stringify(allFiles)}, '${subjectName}', '${branch}')"
                                 >
-                                    ${file.name.replace('.md', '').replace('_', ' ')}
+                                    ${formatFileName(file.name)}
                                 </button>
                             `).join('')}
                         </div>
