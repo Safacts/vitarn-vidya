@@ -5,6 +5,18 @@ const GITHUB_REPO = 'Safacts/syllabus';
 const GITHUB_API_BASE = 'https://api.github.com/repos';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com';
 
+// Configure marked.js with highlight.js
+marked.setOptions({
+    highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+    },
+    breaks: true,
+    gfm: true
+});
+
 // State
 let subjects = [];
 let currentFilter = 'all';
